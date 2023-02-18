@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>绘制多个点</title>
+    <!-- 坐标转换库 -->
+    <script src="glMatrix-0.9.6.min.js"></script>
+    <script>
+      let vertexstring = `
+        attribute vec3 a_position;
+        uniform     mat4    proj;
+        attribute vec3 a_color;
+        varying vec3 inColor;
+        void main(void){
+            gl_Position = vec4(a_position,1.0);
+            gl_PointSize=60.0;
+            inColor = a_color;
+        }
+        `;
+      // 片元着色器
+      let fragmentstring = `
+        precision mediump float;
+        varying vec3 inColor;
+        void main(void){
+          gl_FragColor = vec4(inColor,1.0);
+        }
+        `;
+      // 投影
+      var projMat4 = mat4.create();
+      // webgl上下文
+      var webgl;
+      // 入口函数
+      function init() {
+        initWebgl();
+        initShader();
+        initBuffer();
+        draw();
+      }
+      // webgl初始化
+      function initWebgl() {
+        let webglDiv = document.getElementById("myCanvas");
+        webgl = webglDiv.getContext("webgl");
+        // 平面视觉区域 4个参数
+        webgl.viewport(0, 0, webglDiv.clientWidth, webglDiv.clientHeight);
+        // 设置webgl投影， 7个参数
+        mat4.ortho(
+          0,
+          webglDiv.clientWidth,
+          webglDiv.clientHeight,
+          0,
+          -1.0,
+          1.0,
+          projMat4
+        );
+      }
+      // shader初始化函数
+      function initShader() {
+        // 定义shader容器
+        let vsshader = webgl.createShader(webgl.VERTEX_SHADER);
+        let fsshader = webgl.createShader(webgl.FRAGMENT_SHADER);
+
+        webgl.shaderSource(vsshader, vertexstring);
+        webgl.shaderSource(fsshader, fragmentstring);
+
+        // 编译
+        webgl.compileShader(vsshader);
+        webgl.compileShader(fsshader);
+        if (!webgl.getShaderParameter(vsshader, webgl.COMPILE_STATUS)) {
+          var err = webgl.getShaderInfoLog(vsshader);
+          alert(err);
+          return;
+        }
+        if (!webgl.getShaderParameter(fsshader, webgl.COMPILE_STATUS)) {
+          var err = webgl.getShaderInfoLog(fsshader);
+          alert(err);
+          return;
+        }
+
+        // 创建项目
+        let program = webgl.createProgram();
+        // 项目绑定shader
+        webgl.attachShader(program, vsshader);
+        webgl.attachShader(program, fsshader);
+
+        // 连接项目
+        webgl.linkProgram(program);
+        // 使用项目
+        webgl.useProgram(program);
+        // 将项目绑定到webgl
+        webgl.program = program;
+      }
+
+      // 数据缓冲区初始化函数
+      var POINTS = [];
+      var COLORS = [];
+      function initBuffer() {
+        let aPsotion = webgl.getAttribLocation(webgl.program, "a_position");
+        let aColor = webgl.getAttribLocation(webgl.program, "a_color");
+        // 鼠标按下事件
+        document.addEventListener("mousedown", function (e) {
+          // 获取点
+          let x = e.clientX;
+          let y = e.clientY;
+
+          let rect = e.target.getBoundingClientRect();
+          let top = rect.top;
+          let left = rect.left;
+
+          let pointX = (x - left - 512) / 512;
+          let pointY = -(y - top - 350) / 350;
+
+          POINTS.push(pointX);
+          POINTS.push(pointY);
+          POINTS.push(0);
+          // 1象限颜色
+          if (pointX > 0 && pointY > 0) {
+            COLORS.push(1.0);
+            COLORS.push(0.0);
+            COLORS.push(0.0);
+          } else if (pointX < 0 && pointY > 0) {
+            COLORS.push(0.0);
+            COLORS.push(1.0);
+            COLORS.push(0.0);
+          } else if (pointX < 0 && pointY < 0) {
+            COLORS.push(0.0);
+            COLORS.push(0.0);
+            COLORS.push(1.0);
+          } else {
+            COLORS.push(0.0);
+            COLORS.push(1.0);
+            COLORS.push(1.0);
+          }
+
+          // 获取shader变量
+          let pointPosition = new Float32Array(POINTS);
+
+          // 创建缓冲区
+          let pointBuffer = webgl.createBuffer();
+          //   绑定缓冲区
+          webgl.bindBuffer(webgl.ARRAY_BUFFER, pointBuffer);
+          // buffer赋值
+          webgl.bufferData(
+            webgl.ARRAY_BUFFER,
+            pointPosition,
+            webgl.STATIC_DRAW
+          );
+
+          webgl.enableVertexAttribArray(aPsotion);
+          webgl.vertexAttribPointer(aPsotion, 3, webgl.FLOAT, false, 0, 0);
+
+          let pointColor = new Float32Array(COLORS);
+          let pointColorBuffer = webgl.createBuffer();
+          webgl.bindBuffer(webgl.ARRAY_BUFFER, pointColorBuffer);
+          webgl.bufferData(webgl.ARRAY_BUFFER, pointColor, webgl.STATIC_DRAW);
+          webgl.enableVertexAttribArray(aColor);
+          webgl.vertexAttribPointer(aColor, 3, webgl.FLOAT, false, 0, 0);
+          // 绘制
+          webgl.clearColor(0.0, 0.0, 0.0, 1.0);
+          webgl.clear(webgl.COLOR_BUFFER_BIT | webgl.DEPTH_BUFFER_BIT);
+          webgl.drawArrays(webgl.POINTS, 0, POINTS.length / 3);
+        });
+        let uniformProj = webgl.getUniformLocation(webgl.program, "proj");
+        webgl.uniformMatrix4fv(uniformProj, false, projMat4);
+      }
+      // webGL绘制函数
+      function draw() {
+        webgl.clearColor(0.0, 0.0, 0.0, 1.0);
+        webgl.clear(webgl.COLOR_BUFFER_BIT | webgl.DEPTH_BUFFER_BIT);
+      }
+    </script>
+  </head>
+  <body onload="init()">
+    <canvas id="myCanvas" width="1024" height="700"></canvas>
+  </body>
+</html>
