@@ -12,9 +12,10 @@
       const vsString = `
       uniform mat4 proj;
       attribute vec3 a_position;
-      uniform float angle;
+      uniform float anglex;
+      uniform float angley;
       void main() {
-        gl_Position = vec4(a_position.x*cos(angle)-a_position.y*sin(angle), a_position.x*sin(angle)+a_position.y*cos(angle), 0, 1.0);
+        gl_Position = vec4(a_position.x + anglex, a_position.y + angley, 0, 1.0);
       }
       `;
       const fsString = `
@@ -25,6 +26,7 @@
       function init() {
         initWebgl();
         initShader();
+        initEvent();
         initBuffer();
         draw();
       }
@@ -74,9 +76,24 @@
 
         webgl.program = program;
       }
-      let count = 0
+      let countx = 0
+      let county = 0
+      function initEvent () {
+        document.onkeydown = handleDeyDown;
+      }
+      function handleDeyDown(event) {
+        const obj = {
+          87: () => county = county + 0.01,
+          83: () => county = county - 0.01,
+          65: () => countx = countx - 0.01,
+          68: () => countx = countx + 0.01
+        }
+        if(Object.keys(obj).some(item => Number(item) == event.keyCode)) {
+          obj[event.keyCode]()
+        }
+        
+      }
       function initBuffer() {
-        count = count + 0.01
         const arr = [0.1, 0.4, 0, 0.1, 0.5, 0, 0.2, 0.4, 0];
         const float = new Float32Array(arr);
         const buffer = webgl.createBuffer();
@@ -87,8 +104,10 @@
         webgl.enableVertexAttribArray(aPosition);
         webgl.vertexAttribPointer(aPosition, 3, webgl.FLOAT, false, 3 * 4, 0);
 
-        const uAngle = webgl.getUniformLocation(webgl.program, "angle");
-        webgl.uniform1f(uAngle, count);
+        const xAngle = webgl.getUniformLocation(webgl.program, "anglex");
+        const yAngle = webgl.getUniformLocation(webgl.program, "angley");
+        webgl.uniform1f(xAngle, countx);
+        webgl.uniform1f(yAngle, county);
       }
       function draw() {
         webgl.clearColor(1.0, 0.0, 0.0, 1.0);
