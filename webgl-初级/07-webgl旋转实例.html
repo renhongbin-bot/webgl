@@ -1,35 +1,103 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document</title>
+    <script src="./glMatrix-0.9.6.min.js"></script>
     <script>
-        function init() {
-            initWebgl()
-            initShader()
-            initBuffer()
-            draw()
+      let webgl;
+      let projMat;
+      const vsString = `
+      uniform mat4 proj;
+      attribute vec3 a_position;
+      uniform float angle;
+      void main() {
+        gl_Position = vec4(a_position.x*cos(angle)-a_position.y*sin(angle), a_position.x*sin(angle)+a_position.y*cos(angle), 0, 1.0);
+      }
+      `;
+      const fsString = `
+      void main() {
+        gl_FragColor = vec4(0.0,0.0,1.0,1.0);
+      }
+      `;
+      function init() {
+        initWebgl();
+        initShader();
+        initBuffer();
+        draw();
+      }
+      function initWebgl() {
+        const webglDom = document.getElementById("webgl_canvas");
+        webgl = webglDom.getContext("webgl");
+        webgl.viewport(0, 0, webglDom.clientWidth, webglDom.clientHeight);
+        mat4.ortho(
+          0,
+          webglDom.clientWidth,
+          webglDom.clientHeight,
+          0,
+          -1,
+          1,
+          projMat
+        );
+      }
+
+      function initShader() {
+        const shaderVS = webgl.createShader(webgl.VERTEX_SHADER);
+        const shaderFS = webgl.createShader(webgl.FRAGMENT_SHADER);
+
+        webgl.shaderSource(shaderVS, vsString);
+        webgl.shaderSource(shaderFS, fsString);
+
+        webgl.compileShader(shaderVS);
+        webgl.compileShader(shaderFS);
+
+        if (!webgl.getShaderParameter(shaderVS, webgl.COMPILE_STATUS)) {
+          const err = webgl.getShaderInfoLog(shaderVS);
+          alert(err);
+          return;
         }
-        function initWebgl() {
-
+        if (!webgl.getShaderParameter(shaderFS, webgl.COMPILE_STATUS)) {
+          const err = webgl.getShaderInfoLog(shaderFS);
+          alert(err);
+          return;
         }
 
-        function initShader() {
+        let program = webgl.createProgram();
 
-        }
+        webgl.attachShader(program, shaderVS);
+        webgl.attachShader(program, shaderFS);
 
-        function initBuffer() {
+        webgl.linkProgram(program);
+        webgl.useProgram(program);
 
-        }
+        webgl.program = program;
+      }
+      function initBuffer() {
+        const arr = [0.1, 0.4, 0, 0.1, 0.5, 0, 0.2, 0.4, 0];
+        const float = new Float32Array(arr);
+        const buffer = webgl.createBuffer();
+        webgl.bindBuffer(webgl.ARRAY_BUFFER, buffer);
+        webgl.bufferData(webgl.ARRAY_BUFFER, float, webgl.STATIC_DRAW);
 
-        function draw() {
-            
-        }
+        const aPosition = webgl.getAttribLocation(webgl.program, "a_position");
+        webgl.enableVertexAttribArray(aPosition);
+        webgl.vertexAttribPointer(aPosition, 3, webgl.FLOAT, false, 3 * 4, 0);
+
+        const uAngle = webgl.getUniformLocation(webgl.program, "angle");
+        const angle1 = (90 * Math.PI) / 180;
+        webgl.uniform1f(uAngle, angle1);
+      }
+
+      function draw() {
+        webgl.clearColor(1.0, 0.0, 0.0, 1.0);
+        webgl.clear(webgl.COLOR_BUFFER_BIT);
+        webgl.drawArrays(webgl.TRIANGLES, 0, 3);
+      }
     </script>
-</head>
-<body onload="init()">
-    <canvas id="webgl" height="" width=""></canvas>
-</body>
+  </head>
+  <body onload="init()">
+    <canvas id="webgl_canvas" height="500" width="500"></canvas>
+  </body>
 </html>
