@@ -144,7 +144,7 @@
           gl.useProgram(program)
           gl.enableVertexAttribArray(positionLocation)
           gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
-          var size = 2 // 每次迭代2个组件
+          var size = 2 // 每次迭代2个单位数据
           var type = gl.FLOAT // 数据为32位浮点数
           var normalize = false // 不要将数据规范化
           var stride = 0 // 0 = 每次迭代向前移动size * sizeof(type)以获得下一个位置
